@@ -34,18 +34,21 @@ Z1 Gazebo 仿真
 
 - [1. 环境说明](#1-环境说明)
 - [2. 安装 Docker](#2-安装-docker)
-- [3. 解决 Docker Hub 网络问题](#3-解决-docker-hub-网络问题)
-- [4. 创建 Z1 Docker 工作目录](#4-创建-z1-docker-工作目录)
-- [5. 创建 Dockerfile](#5-创建-dockerfile)
-- [6. 创建自动安装脚本](#6-创建自动安装脚本)
-- [7. 构建 Docker 镜像](#7-构建-docker-镜像)
-- [8. 启动 Docker 容器](#8-启动-docker-容器)
-- [9. 在容器内下载并编译 Z1 仿真代码](#9-在容器内下载并编译-z1-仿真代码)
-- [10. 运行 Z1 仿真](#10-运行-z1-仿真)
-- [11. 每次重新运行仿真的命令](#11-每次重新运行仿真的命令)
-- [12. 常见问题与解决方法](#12-常见问题与解决方法)
-- [13. Ubuntu 22.04 和 24.04 的区别](#13-ubuntu-2204-和-2404-的区别)
-- [14. 相关代码库说明](#14-相关代码库说明)
+- [3. 安装图形转发依赖](#3-安装图形转发依赖)
+- [4. 解决 Docker Hub 网络问题](#4-解决-docker-hub-网络问题)
+- [5. 创建 Z1 Docker 工作目录](#5-创建-z1-docker-工作目录)
+- [6. 创建 Dockerfile](#6-创建-dockerfile)
+- [7. 创建自动安装脚本](#7-创建自动安装脚本)
+- [8. 构建 Docker 镜像](#8-构建-docker-镜像)
+- [9. 启动 Docker 容器](#9-启动-docker-容器)
+- [10. 在容器内下载并编译 Z1 仿真代码](#10-在容器内下载并编译-z1-仿真代码)
+- [11. 运行 Z1 仿真](#11-运行-z1-仿真)
+- [12. 每次重新运行仿真的命令](#12-每次重新运行仿真的命令)
+- [13. 常见问题与解决方法](#13-常见问题与解决方法)
+- [14. Ubuntu 22.04 和 24.04 的区别](#14-ubuntu-2204-和-2404-的区别)
+- [15. 相关代码库说明](#15-相关代码库说明)
+- [16. 最短命令回顾](#16-最短命令回顾)
+- [17. 上传到 GitHub](#17-上传到-github)
 
 ---
 
@@ -124,7 +127,7 @@ docker --version
 
 如果能输出 Docker 版本，说明 Docker 已安装。
 
-### 2.2 如果官方 Docker 源连接失败
+### 2.2 如果官方 Docker 源连接失败：换清华 Docker CE 源
 
 如果出现：
 
@@ -133,7 +136,58 @@ curl: (35) OpenSSL SSL_connect: 连接被对方重置 in connection to download.
 chmod: 无法访问 '/etc/apt/keyrings/docker.asc': 没有那个文件或目录
 ```
 
-说明访问 Docker 官方源失败。可以改用 Ubuntu 自带的 `docker.io`：
+说明访问 Docker 官方源失败，GPG key 没有下载下来。这个问题可以通过换用清华 Docker CE 镜像源解决。
+
+先清理刚才失败留下的配置：
+
+```bash
+sudo rm -f /etc/apt/sources.list.d/docker.list
+sudo rm -f /etc/apt/keyrings/docker.gpg
+sudo rm -f /etc/apt/keyrings/docker.asc
+```
+
+安装基础工具：
+
+```bash
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
+```
+
+创建 keyrings 目录：
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+```
+
+使用清华 Docker CE 源下载 GPG key：
+
+```bash
+curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+```
+
+添加清华 Docker CE apt 源：
+
+```bash
+echo \
+"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+安装 Docker：
+
+```bash
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo systemctl enable docker
+sudo systemctl start docker
+
+docker --version
+```
+
+如果清华源仍然失败，再使用 Ubuntu 自带的 `docker.io` 作为兜底：
 
 ```bash
 sudo rm -f /etc/apt/sources.list.d/docker.list
@@ -149,7 +203,7 @@ sudo systemctl start docker
 docker --version
 ```
 
-这不是最新版 Docker，但足够运行本项目。
+`docker.io` 不一定是最新版 Docker，但足够运行本项目。
 
 ### 2.3 配置当前用户使用 Docker
 
@@ -184,7 +238,58 @@ sudo docker ps
 
 ---
 
-## 3. 解决 Docker Hub 网络问题
+## 3. 安装图形转发依赖
+
+Gazebo 是图形界面程序，虽然它运行在 Docker 容器里，但窗口需要显示到主机 Ubuntu 桌面上。因此主机需要安装 X11 图形转发相关工具。
+
+在主机终端执行：
+
+```bash
+sudo apt update
+sudo apt install -y x11-xserver-utils mesa-utils
+```
+
+允许 Docker 容器里的 root 用户访问主机 X11 显示服务：
+
+```bash
+xhost +local:root
+```
+
+正常会输出类似：
+
+```text
+non-network local connections being added to access control list
+```
+
+如果后续每次重启电脑后 Gazebo 打不开窗口，可以重新执行：
+
+```bash
+xhost +local:root
+```
+
+如果你使用的是 Ubuntu 24.04，默认桌面可能是 Wayland。Gazebo Classic 在 Docker 里通过 X11 显示时，Wayland 环境有时会出现窗口打不开、黑屏或 OpenGL 报错。遇到这种情况，建议注销后在登录界面选择：
+
+```text
+Ubuntu on Xorg
+```
+
+再登录，并重新执行：
+
+```bash
+xhost +local:root
+```
+
+为了提高兼容性，本文后面的 `docker run` 命令中保留了：
+
+```bash
+-e LIBGL_ALWAYS_SOFTWARE=1
+```
+
+这会让 Gazebo 使用软件渲染。优点是更稳，缺点是速度可能慢一点。如果你的显卡驱动和 Docker 图形转发都正常，可以后续尝试去掉这一项。
+
+---
+
+## 4. 解决 Docker Hub 网络问题
 
 如果执行：
 
@@ -257,7 +362,7 @@ FROM docker.m.daocloud.io/osrf/ros:noetic-desktop-full
 
 ---
 
-## 4. 创建 Z1 Docker 工作目录
+## 5. 创建 Z1 Docker 工作目录
 
 在主机终端执行：
 
@@ -279,7 +384,7 @@ cd ~/unitree_z1_docker
 
 ---
 
-## 5. 创建 Dockerfile
+## 6. 创建 Dockerfile
 
 在主机中创建：
 
@@ -364,7 +469,7 @@ FROM osrf/ros:noetic-desktop-full
 
 ---
 
-## 6. 创建自动安装脚本
+## 7. 创建自动安装脚本
 
 在主机执行：
 
@@ -489,7 +594,7 @@ chmod +x setup_z1_noetic.sh
 
 ---
 
-## 7. 构建 Docker 镜像
+## 8. 构建 Docker 镜像
 
 在主机执行：
 
@@ -518,7 +623,7 @@ unitree-z1-noetic   latest   ...   ...
 
 ---
 
-## 8. 启动 Docker 容器
+## 9. 启动 Docker 容器
 
 先允许 Docker 容器访问图形界面：
 
@@ -566,7 +671,7 @@ root@主机名:~/work#
 
 ---
 
-## 9. 在容器内下载并编译 Z1 仿真代码
+## 10. 在容器内下载并编译 Z1 仿真代码
 
 在容器内执行：
 
@@ -596,11 +701,11 @@ cd /root/work
 /root/work/unitree_z1/z1_sdk/build/highcmd_basic
 ```
 
-如果脚本中途失败，参考 [常见问题与解决方法](#12-常见问题与解决方法)。
+如果脚本中途失败，参考 [常见问题与解决方法](#13-常见问题与解决方法)。
 
 ---
 
-## 10. 运行 Z1 仿真
+## 11. 运行 Z1 仿真
 
 需要同时开 3 个终端。
 
@@ -679,7 +784,7 @@ ls -lh highcmd_basic
 
 ---
 
-## 11. 每次重新运行仿真的命令
+## 12. 每次重新运行仿真的命令
 
 以后不需要重新 build，只需要启动容器并分别运行三个终端。
 
@@ -716,11 +821,11 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/work/unitree_z1/z1_sdk/lib:/root/w
 
 ---
 
-## 12. 常见问题与解决方法
+## 13. 常见问题与解决方法
 
 本节整理了实际搭建过程中遇到的问题和处理方式。
 
-### 12.1 Docker 官方源连接失败
+### 13.1 Docker 官方源连接失败，改用清华 Docker CE 源
 
 错误：
 
@@ -735,7 +840,36 @@ chmod: 无法访问 '/etc/apt/keyrings/docker.asc': 没有那个文件或目录
 访问 download.docker.com 失败，GPG key 没有下载下来。
 ```
 
-解决：
+优先解决方法：换用清华 Docker CE 镜像源。
+
+```bash
+sudo rm -f /etc/apt/sources.list.d/docker.list
+sudo rm -f /etc/apt/keyrings/docker.gpg
+sudo rm -f /etc/apt/keyrings/docker.asc
+
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
+
+sudo install -m 0755 -d /etc/apt/keyrings
+
+curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/ubuntu \
+$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo systemctl enable docker
+sudo systemctl start docker
+
+docker --version
+```
+
+如果清华源仍然不可用，可以再退回 Ubuntu 自带的 `docker.io`：
 
 ```bash
 sudo rm -f /etc/apt/sources.list.d/docker.list
@@ -753,7 +887,7 @@ docker --version
 
 ---
 
-### 12.2 Docker 已安装，但拉镜像超时
+### 13.2 Docker 已安装，但拉镜像超时
 
 错误：
 
@@ -808,7 +942,7 @@ FROM docker.m.daocloud.io/osrf/ros:noetic-desktop-full
 
 ---
 
-### 12.3 `FROM docker.m.daocloud.io/osrf/ros:noetic-desktop-full` 写在哪里？
+### 13.3 `FROM docker.m.daocloud.io/osrf/ros:noetic-desktop-full` 写在哪里？
 
 它写在 `Dockerfile` 的第一行，不是在终端里运行。
 
@@ -831,7 +965,7 @@ docker build -t unitree-z1-noetic .
 
 ---
 
-### 12.4 `unitree_legged_msgs` 重复
+### 13.4 `unitree_legged_msgs` 重复
 
 错误：
 
@@ -864,7 +998,300 @@ source /root/work/unitree_ws/devel/setup.bash
 
 ---
 
-### 12.5 GitHub clone 失败
+#### `unitree_legged_msgs` 重复包的完整修复流程
+
+如果第 9/10 步没有成功跑完，并出现：
+
+```text
+Multiple packages found with the same name "unitree_legged_msgs":
+- unitree_legged_msgs
+- unitree_ros_to_real/unitree_legged_msgs
+```
+
+说明 ROS 工作空间里出现了两个同名包：
+
+```text
+/root/work/unitree_ws/src/unitree_legged_msgs
+/root/work/unitree_ws/src/unitree_ros_to_real/unitree_legged_msgs
+```
+
+原因是旧脚本同时做了两件事：
+
+```text
+1. 把 unitree_ros_to_real 整个仓库 clone 到 unitree_ws/src 里面
+2. 又把 unitree_ros_to_real/unitree_legged_msgs 复制了一份到 unitree_ws/src 里面
+```
+
+于是 catkin 在 `src` 目录里扫描到了两个 `unitree_legged_msgs`，所以 `catkin_make` 会直接停止。
+
+下面这些只是警告，不是导致失败的原因：
+
+```text
+Warning: running 'rosdep update' as root is not recommended
+Package name "aliengoZ1_description" does not follow the naming conventions
+```
+
+如果当前还在 Docker 容器里，提示符类似：
+
+```bash
+root@lzj:~/work#
+```
+
+先把重复的 `unitree_ros_to_real` 仓库移出 ROS 工作空间：
+
+```bash
+cd /root/work/unitree_ws/src
+mv unitree_ros_to_real /root/work/unitree_ros_to_real_backup
+```
+
+然后重新编译 ROS 工作空间：
+
+```bash
+cd /root/work/unitree_ws
+source /opt/ros/noetic/setup.bash
+catkin_make
+```
+
+如果成功，最后通常能看到类似：
+
+```text
+[100%] Built target ...
+```
+
+加载工作空间环境：
+
+```bash
+source /root/work/unitree_ws/devel/setup.bash
+```
+
+检查包是否能找到：
+
+```bash
+rospack find unitree_gazebo
+rospack find z1_description
+```
+
+正常应该输出类似：
+
+```text
+/root/work/unitree_ws/src/unitree_ros/unitree_gazebo
+/root/work/unitree_ws/src/unitree_ros/robots/z1_description
+```
+
+因为脚本在 `catkin_make` 失败后会停住，所以后面的 `z1_controller` 和 `z1_sdk` 可能还没有下载或编译。继续执行：
+
+```bash
+mkdir -p /root/work/unitree_z1
+cd /root/work/unitree_z1
+```
+
+下载 `z1_controller`：
+
+```bash
+if [ ! -d z1_controller ]; then
+  git clone https://github.com/unitreerobotics/z1_controller.git
+fi
+```
+
+下载 `z1_sdk`：
+
+```bash
+if [ ! -d z1_sdk ]; then
+  git clone https://github.com/unitreerobotics/z1_sdk.git
+fi
+```
+
+编译 `z1_controller`：
+
+```bash
+source /opt/ros/noetic/setup.bash
+source /root/work/unitree_ws/devel/setup.bash
+
+cd /root/work/unitree_z1/z1_controller
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+检查是否生成 `sim_ctrl`：
+
+```bash
+ls -lh sim_ctrl z1_ctrl
+```
+
+正常应该能看到：
+
+```text
+sim_ctrl
+z1_ctrl
+```
+
+继续编译 `z1_sdk`：
+
+```bash
+cd /root/work/unitree_z1/z1_sdk
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+检查 SDK 示例是否生成：
+
+```bash
+ls -lh highcmd_basic highcmd_development lowcmd_development lowcmd_multirobots
+```
+
+正常应该能看到：
+
+```text
+highcmd_basic
+highcmd_development
+lowcmd_development
+lowcmd_multirobots
+```
+
+为了避免下次脚本又出现同样问题，主机上的脚本：
+
+```text
+~/unitree_z1_docker/setup_z1_noetic.sh
+```
+
+不要把 `unitree_ros_to_real` clone 到 `unitree_ws/src` 里面。应该把它放到工作空间外面，例如：
+
+```text
+/root/work/third_party/unitree_ros_to_real
+```
+
+在主机新开终端：
+
+```bash
+cd ~/unitree_z1_docker
+nano setup_z1_noetic.sh
+```
+
+如果脚本里还有下面这种旧写法：
+
+```bash
+cd /root/work/unitree_ws/src
+
+echo "==> Clone unitree_ros_to_real for unitree_legged_msgs"
+if [ ! -d unitree_ros_to_real ]; then
+  git clone https://github.com/unitreerobotics/unitree_ros_to_real.git
+else
+  echo "unitree_ros_to_real already exists, skip clone"
+fi
+
+echo "==> Copy unitree_legged_msgs into workspace"
+if [ ! -d /root/work/unitree_ws/src/unitree_legged_msgs ]; then
+  cp -r /root/work/unitree_ws/src/unitree_ros_to_real/unitree_legged_msgs /root/work/unitree_ws/src/
+else
+  echo "unitree_legged_msgs already exists, skip copy"
+fi
+```
+
+把它改成：
+
+```bash
+echo "==> Clone unitree_ros_to_real for unitree_legged_msgs"
+mkdir -p /root/work/third_party
+cd /root/work/third_party
+
+if [ ! -d unitree_ros_to_real ]; then
+  git clone https://github.com/unitreerobotics/unitree_ros_to_real.git
+else
+  echo "unitree_ros_to_real already exists, skip clone"
+fi
+
+echo "==> Copy unitree_legged_msgs into workspace"
+if [ ! -d /root/work/unitree_ws/src/unitree_legged_msgs ]; then
+  cp -r /root/work/third_party/unitree_ros_to_real/unitree_legged_msgs /root/work/unitree_ws/src/
+else
+  echo "unitree_legged_msgs already exists, skip copy"
+fi
+
+cd /root/work/unitree_ws/src
+```
+
+保存退出：
+
+```text
+Ctrl + O
+Enter
+Ctrl + X
+```
+
+本文档第 7 节给出的 `setup_z1_noetic.sh` 已经采用了这个修正版写法。
+
+如果你不想分段执行，也可以在容器里直接运行下面这一组最省事的修复命令：
+
+```bash
+cd /root/work/unitree_ws/src
+mv unitree_ros_to_real /root/work/unitree_ros_to_real_backup
+
+cd /root/work/unitree_ws
+source /opt/ros/noetic/setup.bash
+catkin_make
+source /root/work/unitree_ws/devel/setup.bash
+
+mkdir -p /root/work/unitree_z1
+cd /root/work/unitree_z1
+
+if [ ! -d z1_controller ]; then
+  git clone https://github.com/unitreerobotics/z1_controller.git
+fi
+
+if [ ! -d z1_sdk ]; then
+  git clone https://github.com/unitreerobotics/z1_sdk.git
+fi
+
+cd /root/work/unitree_z1/z1_controller
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+
+cd /root/work/unitree_z1/z1_sdk
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+```
+
+这组命令跑完如果没有报错，就可以继续使用三个终端启动 Z1 仿真：
+
+终端 1：
+
+```bash
+docker exec -it unitree-z1-noetic bash
+source /opt/ros/noetic/setup.bash
+source /root/work/unitree_ws/devel/setup.bash
+roslaunch unitree_gazebo z1.launch
+```
+
+终端 2：
+
+```bash
+docker exec -it unitree-z1-noetic bash
+source /opt/ros/noetic/setup.bash
+source /root/work/unitree_ws/devel/setup.bash
+cd /root/work/unitree_z1/z1_controller/build
+./sim_ctrl
+```
+
+终端 3：
+
+```bash
+docker exec -it unitree-z1-noetic bash
+cd /root/work/unitree_z1/z1_sdk/build
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/work/unitree_z1/z1_sdk/lib:/root/work/unitree_z1/z1_controller/lib
+./highcmd_basic
+```
+
+---
+
+### 13.5 GitHub clone 失败
 
 错误：
 
@@ -910,7 +1337,7 @@ git clone https://github.com/unitreerobotics/z1_controller.git /root/work/unitre
 
 ---
 
-### 12.6 `docker exec` 权限不足
+### 13.6 `docker exec` 权限不足
 
 错误：
 
@@ -949,7 +1376,7 @@ bash: /opt/ros/noetic/setup.bash: 没有那个文件或目录
 
 ---
 
-### 12.7 `sim_ctrl` 提示等待 `z1_sdk`
+### 13.7 `sim_ctrl` 提示等待 `z1_sdk`
 
 提示：
 
@@ -992,7 +1419,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/work/unitree_z1/z1_sdk/lib:/root/w
 
 ---
 
-### 12.8 `sim_ctrl` 不存在
+### 13.8 `sim_ctrl` 不存在
 
 错误：
 
@@ -1023,7 +1450,7 @@ ls -lh sim_ctrl z1_ctrl
 
 ---
 
-### 12.9 `highcmd_basic` 不存在
+### 13.9 `highcmd_basic` 不存在
 
 错误：
 
@@ -1051,7 +1478,7 @@ ls -lh highcmd_basic highcmd_development lowcmd_development lowcmd_multirobots
 
 ---
 
-### 12.10 Gazebo 窗口打不开
+### 13.10 Gazebo 窗口打不开
 
 错误可能类似：
 
@@ -1091,7 +1518,7 @@ xhost +local:root
 
 ---
 
-### 12.11 容器名已经存在
+### 13.11 容器名已经存在
 
 错误：
 
@@ -1123,7 +1550,7 @@ docker rm unitree-z1-noetic
 
 ---
 
-## 13. Ubuntu 22.04 和 24.04 的区别
+## 14. Ubuntu 22.04 和 24.04 的区别
 
 如果使用 Docker 方案，Ubuntu 22.04 和 Ubuntu 24.04 区别不大。
 
@@ -1143,7 +1570,7 @@ Ubuntu 22.04 / 24.04 主机都推荐用 Docker 跑 ROS1 Noetic 容器。
 
 ---
 
-## 14. 相关代码库说明
+## 15. 相关代码库说明
 
 ### `unitree_ros`
 
@@ -1216,7 +1643,7 @@ https://github.com/unitreerobotics/z1_sdk
 
 ---
 
-## 15. 最短命令回顾
+## 16. 最短命令回顾
 
 构建并启动：
 
@@ -1278,7 +1705,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/work/unitree_z1/z1_sdk/lib:/root/w
 
 ---
 
-## 16. 上传到 GitHub
+## 17. 上传到 GitHub
 
 如果你的仓库是：
 
@@ -1314,4 +1741,3 @@ git add README.md
 git commit -m "Add Unitree Z1 Docker ROS1 simulation guide"
 git push
 ```
-
