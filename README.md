@@ -1705,38 +1705,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/work/unitree_z1/z1_sdk/lib:/root/w
 
 ---
 
-## 17. 上传到 GitHub
 
-如果你的仓库是：
-
-```text
-https://github.com/bengfa12138/Unitree-Z1.git
-```
-
-可以在本地执行：
-
-```bash
-git clone https://github.com/bengfa12138/Unitree-Z1.git
-cd Unitree-Z1
-```
-
-把本文档保存为仓库根目录的：
-
-```text
-README.md
-```
-
-然后提交：
-
-```bash
-git add README.md
-git commit -m "Add Unitree Z1 Docker ROS1 simulation guide"
-git push
-```
-
-如果本地已经是该仓库：
-
-```bash
 git add README.md
 git commit -m "Add Unitree Z1 Docker ROS1 simulation guide"
 git push
