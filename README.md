@@ -817,6 +817,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/work/unitree_z1/z1_sdk/lib:/root/w
 ```
 
 如果 Docker 权限不足，将每个 `docker` 改成 `sudo docker`。
+如果上一次的程序没有关干净会出现报错。这个时候可以尝试
+```bash
+docker restart unitree-z1-noetic
+```
 
 ---
 
