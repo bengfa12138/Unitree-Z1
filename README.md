@@ -34,8 +34,8 @@ Z1 Gazebo 仿真
 
 - [1. 环境说明](#1-环境说明)
 - [2. 安装 Docker](#2-安装-docker)
-- [3. 安装图形转发依赖](#3-安装图形转发依赖)
-- [4. 解决 Docker Hub 网络问题](#4-解决-docker-hub-网络问题)
+- [3. 解决 Docker Hub 网络问题](#3-解决-docker-hub-网络问题)
+- [4. 安装图形转发依赖](#4-安装图形转发依赖)
 - [5. 创建 Z1 Docker 工作目录](#5-创建-z1-docker-工作目录)
 - [6. 创建 Dockerfile](#6-创建-dockerfile)
 - [7. 创建自动安装脚本](#7-创建自动安装脚本)
@@ -48,7 +48,6 @@ Z1 Gazebo 仿真
 - [14. Ubuntu 22.04 和 24.04 的区别](#14-ubuntu-2204-和-2404-的区别)
 - [15. 相关代码库说明](#15-相关代码库说明)
 - [16. 最短命令回顾](#16-最短命令回顾)
-- [17. 上传到 GitHub](#17-上传到-github)
 
 ---
 
@@ -238,58 +237,7 @@ sudo docker ps
 
 ---
 
-## 3. 安装图形转发依赖
-
-Gazebo 是图形界面程序，虽然它运行在 Docker 容器里，但窗口需要显示到主机 Ubuntu 桌面上。因此主机需要安装 X11 图形转发相关工具。
-
-在主机终端执行：
-
-```bash
-sudo apt update
-sudo apt install -y x11-xserver-utils mesa-utils
-```
-
-允许 Docker 容器里的 root 用户访问主机 X11 显示服务：
-
-```bash
-xhost +local:root
-```
-
-正常会输出类似：
-
-```text
-non-network local connections being added to access control list
-```
-
-如果后续每次重启电脑后 Gazebo 打不开窗口，可以重新执行：
-
-```bash
-xhost +local:root
-```
-
-如果你使用的是 Ubuntu 24.04，默认桌面可能是 Wayland。Gazebo Classic 在 Docker 里通过 X11 显示时，Wayland 环境有时会出现窗口打不开、黑屏或 OpenGL 报错。遇到这种情况，建议注销后在登录界面选择：
-
-```text
-Ubuntu on Xorg
-```
-
-再登录，并重新执行：
-
-```bash
-xhost +local:root
-```
-
-为了提高兼容性，本文后面的 `docker run` 命令中保留了：
-
-```bash
--e LIBGL_ALWAYS_SOFTWARE=1
-```
-
-这会让 Gazebo 使用软件渲染。优点是更稳，缺点是速度可能慢一点。如果你的显卡驱动和 Docker 图形转发都正常，可以后续尝试去掉这一项。
-
----
-
-## 4. 解决 Docker Hub 网络问题
+## 3. 解决 Docker Hub 网络问题
 
 如果执行：
 
@@ -359,6 +307,57 @@ docker pull docker.m.daocloud.io/osrf/ros:noetic-desktop-full
 ```dockerfile
 FROM docker.m.daocloud.io/osrf/ros:noetic-desktop-full
 ```
+
+---
+
+## 4. 安装图形转发依赖
+
+Gazebo 是图形界面程序，虽然它运行在 Docker 容器里，但窗口需要显示到主机 Ubuntu 桌面上。因此主机需要安装 X11 图形转发相关工具。
+
+在主机终端执行：
+
+```bash
+sudo apt update
+sudo apt install -y x11-xserver-utils mesa-utils
+```
+
+允许 Docker 容器里的 root 用户访问主机 X11 显示服务：
+
+```bash
+xhost +local:root
+```
+
+正常会输出类似：
+
+```text
+non-network local connections being added to access control list
+```
+
+如果后续每次重启电脑后 Gazebo 打不开窗口，可以重新执行：
+
+```bash
+xhost +local:root
+```
+
+如果你使用的是 Ubuntu 24.04，默认桌面可能是 Wayland。Gazebo Classic 在 Docker 里通过 X11 显示时，Wayland 环境有时会出现窗口打不开、黑屏或 OpenGL 报错。遇到这种情况，建议注销后在登录界面选择：
+
+```text
+Ubuntu on Xorg
+```
+
+再登录，并重新执行：
+
+```bash
+xhost +local:root
+```
+
+为了提高兼容性，本文后面的 `docker run` 命令中保留了：
+
+```bash
+-e LIBGL_ALWAYS_SOFTWARE=1
+```
+
+这会让 Gazebo 使用软件渲染。优点是更稳，缺点是速度可能慢一点。如果你的显卡驱动和 Docker 图形转发都正常，可以后续尝试去掉这一项。
 
 ---
 
