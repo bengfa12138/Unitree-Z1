@@ -173,6 +173,10 @@ int main()
             case ' ':
                 // 空格：回到起始姿态，并重新读取当前关节角作为控制起点。
                 arm.backToStart();
+                // backToStart() 可能会切换 SDK 内部状态机。
+                // 回到起始姿态后，需要重新进入关节空间控制模式，
+                // 否则后续 setArmCmd(q, qd) 可能不会继续生效。
+                arm.startTrack(UNITREE_ARM::ArmFSMState::JOINTCTRL);
                 cmdQ = arm.lowstate->getQ();
                 cmdQd.setZero();
                 std::cout << "\n已回到起始姿态。\n";
@@ -212,4 +216,3 @@ int main()
     std::cout << "\nZ1 键盘控制程序已退出。\n";
     return 0;
 }
-
