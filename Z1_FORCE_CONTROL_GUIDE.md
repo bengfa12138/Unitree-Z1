@@ -1,8 +1,8 @@
 # Unitree Z1 仿真力控操作文档
 
-本文档从你当前已经跑通的 Z1 Docker 仿真环境继续，不重新讲 Docker、ROS1 Noetic、Gazebo 的搭建过程。
+本文档从当前已经跑通的 Z1 Docker 仿真环境继续。
 
-当前默认你已经具备：
+当前默认已经具备：
 
 ```text
 Ubuntu 22.04 / 24.04 主机
