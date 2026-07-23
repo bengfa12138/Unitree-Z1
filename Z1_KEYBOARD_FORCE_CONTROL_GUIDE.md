@@ -1,6 +1,6 @@
 # Unitree Z1 键盘实时力控操作文档
 
-本文档从你已经跑通的 Z1 Gazebo 仿真继续，不重新讲 Docker、ROS1 Noetic、Gazebo 的完整安装过程。
+本文档从跑通的 Z1 Gazebo 仿真继续。
 
 目标是实现：
 
@@ -29,9 +29,9 @@ z1_trajectory_examples/z1_keyboard_force_control.cpp
 
 ---
 
-## 1. 先说明：这里的“完整力控”是什么
+## 1. 这里的完整力控是什么
 
-你现在的 Z1 仿真结构大概是：
+现在的 Z1 仿真结构大概是：
 
 ```text
 z1_sdk 示例程序
@@ -112,7 +112,6 @@ F_error    = F_desired - F_measured
 让仿真机械臂表现出明显的受力和柔顺效果。
 ```
 
-它已经比之前的 `z1_force_control.cpp` 更接近你要的“实时力控实验”，但还不是带力传感器反馈的闭环接触力控制。
 
 如果后面要做真正闭环，需要继续加：
 
