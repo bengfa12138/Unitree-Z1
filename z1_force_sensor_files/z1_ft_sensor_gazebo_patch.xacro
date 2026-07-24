@@ -1,0 +1,33 @@
+<!--
+  Unitree Z1 Gazebo force/torque sensor patch.
+
+  用法：
+    把本文件中的内容复制到：
+      /root/work/unitree_ws/src/unitree_ros/robots/z1_description/xacro/gazebo.xacro
+    的 <robot> ... </robot> 内部。
+
+  默认测量关节：
+    joint6
+
+  如果你的 Z1 模型里末端关节名字不是 joint6，请先执行：
+    grep -R "<joint name" /root/work/unitree_ws/src/unitree_ros/robots/z1_description
+
+  找到连接 link05 -> link06 或者最后一级腕部/末端的关节名后，
+  同时替换下面两处 joint6：
+    1. <gazebo reference="joint6">
+    2. <jointName>joint6</jointName>
+-->
+
+<!-- 让 Gazebo 对 joint6 计算关节力/力矩反馈。没有 provideFeedback 时，FT 插件通常读不到有效力。 -->
+<gazebo reference="joint6">
+  <provideFeedback>true</provideFeedback>
+</gazebo>
+
+<!-- Gazebo 标准 ROS force/torque 插件，发布 geometry_msgs/WrenchStamped。 -->
+<gazebo>
+  <plugin name="z1_ft_sensor" filename="libgazebo_ros_ft_sensor.so">
+    <updateRate>200.0</updateRate>
+    <topicName>/z1/ft_sensor</topicName>
+    <jointName>joint6</jointName>
+  </plugin>
+</gazebo>

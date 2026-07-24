@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <model name="z1_contact_block">
+    <static>true</static>
+    <link name="contact_block_link">
+      <collision name="contact_block_collision">
+        <geometry>
+          <box>
+            <size>0.08 0.55 0.55</size>
+          </box>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>1.0</mu>
+              <mu2>1.0</mu2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <kp>100000.0</kp>
+              <kd>10.0</kd>
+            </ode>
+          </contact>
+        </surface>
+      </collision>
+      <visual name="contact_block_visual">
+        <geometry>
+          <box>
+            <size>0.08 0.55 0.55</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.2 0.55 0.85 1.0</ambient>
+          <diffuse>0.2 0.55 0.85 1.0</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
